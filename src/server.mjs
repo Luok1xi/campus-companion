@@ -34,6 +34,8 @@ import {Research} from './research.mjs';
 import {Skills} from './skills.mjs';
 import {ResearchToolkit} from './research-tools.mjs';
 import {ToolAgent} from './agent.mjs';
+import {SelfStudy} from './self-study.mjs';
+import {selfState} from './self-state.mjs';
 import {ResearchProjects,reportMarkdown,reportBibtex} from './research-projects.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -55,9 +57,10 @@ export async function createApp({dbPath=resolve(process.env.MIKU_DATA||root+'/da
   const skills=new Skills(),toolkit=new ResearchToolkit({config:agentConfig,reader,repositories,models,memory,skills,db:store.db}),agent=new ToolAgent({models,toolkit,skills,memory,config:agentConfig}),projects=new ResearchProjects(service,{agent,chat});
   if(agentConfig().agentEnabled!==false){chat.agent=agent;chat.projects=projects;}
   const webLife=new WebLife(service,models,{reader});
-  const agency=new Agency(service,chat,models,learning,webLife);
+  const selfStudy=new SelfStudy(service,models,agent);
+  const agency=new Agency(service,chat,models,learning,webLife,selfStudy);
   chat.webLife=webLife;chat.runtimeInfo=()=>({connected:true,enabled:service.state().agency.enabled,...agency.shareStatus(),weixinReady:weixin.ready(),weixinStatus:weixin.info().status,requires:'电脑服务运行、有有效微信会话；受免打扰、每日次数和未回复限制。发送由后台定时检查，不需要新消息触发。'});
-  const viewState=()=>({...service.state(),proactive:{...agency.shareStatus(),weixinReady:weixin.ready(),weixinStatus:weixin.info().status}});
+  const viewState=()=>({...service.state(),self:selfState(service.state(),service.clock(),{usage:models.usage?.()}),proactive:{...agency.shareStatus(),weixinReady:weixin.ready(),weixinStatus:weixin.info().status}});
   const token=randomBytes(32).toString('hex');let lastError='';
   const auth=value=>typeof value==='string'&&value.length===token.length&&timingSafeEqual(Buffer.from(value),Buffer.from(token));
   const json=(res,data,status=200)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
@@ -160,7 +163,7 @@ export async function createApp({dbPath=resolve(process.env.MIKU_DATA||root+'/da
     }catch(e){if(!res.headersSent)json(res,{error:e.message},400);else res.end();}
   });
   let timer;if(background){const tick=async()=>{void social.tick().catch(e=>{lastError=e.message;});void weixin.processInbox();void feishu.processInbox().catch(e=>{lastError=e.message;});if(!chat.active&&cortex.due())void chat.exclusive(()=>cortex.run()).catch(e=>{lastError=e.message;});else if(!chat.active&&inquiry.due())void chat.exclusive(()=>inquiry.run()).catch(e=>{lastError=e.message;});else if(!chat.active&&webLife.dailyDue())void chat.exclusive(()=>webLife.daily()).catch(e=>{lastError=e.message;});else void agency.tick().catch(e=>{lastError=e.message;});if(!chat.active){void research.tick()?.catch(e=>{lastError=e.message;});}try{await scheduler.tick();}catch(e){lastError=e.message;}};timer=setInterval(tick,20000);timer.unref();projects.kick();await scheduler.tick();weixin.connect();void feishu.connect().catch(()=>{feishu.status='连接失败，请检查凭证和网络。';});}
-  return {server,store,service,models,chat,scheduler,conversations,social,feishu,weixin,learning,research,agency,webLife,vision,browser,downloads,tools,cortex,memory,inquiry,skills,toolkit,agent,projects,async close(){clearInterval(timer);await projects.shutdown();await social.close();await feishu.close();await weixin.close();await agency.inflight;await scheduler.inflight;await chat.queue;await learning.inflight;await research.inflight;await reader.tail;await browser.close();server.closeAllConnections();await new Promise(r=>server.listening?server.close(r):r());store.close();}};
+  return {server,store,service,models,chat,scheduler,conversations,social,feishu,weixin,learning,research,agency,selfStudy,webLife,vision,browser,downloads,tools,cortex,memory,inquiry,skills,toolkit,agent,projects,async close(){clearInterval(timer);await projects.shutdown();await social.close();await feishu.close();await weixin.close();await agency.inflight;await agent.pending;await scheduler.inflight;await chat.queue;await learning.inflight;await research.inflight;await reader.tail;await browser.close();server.closeAllConnections();await new Promise(r=>server.listening?server.close(r):r());store.close();}};
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   const app=await createApp();const port=Number(process.env.MIKU_PORT)||17839;

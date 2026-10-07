@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 export const characterCard=JSON.parse(readFileSync(new URL('../vendor/airi/moyu-card.json',import.meta.url),'utf8'));
 export const characterName=characterCard.name;
 export const characterNames=[...new Set([characterCard.name,characterCard.nickname,...(characterCard.aliases||[]),...(characterCard.formerNames||[])].filter(Boolean))];
-export const characterCardPrompt=[characterCard.identity,characterCard.personality,characterCard.voice,characterCard.care,characterCard.interests,characterCard.lore].filter(Boolean).join('\n');
+export const characterCardPrompt=[characterCard.identity,characterCard.personality,characterCard.voice,characterCard.care,characterCard.self,characterCard.interests,characterCard.lore].filter(Boolean).join('\n');
 export const voiceVersion=characterCard.version;
 export const identityVersion=characterCard.identityVersion||1;
 export const voiceTraits=characterCard.stable?.traits||['温柔','单纯','可爱','开朗','好奇','聪明可靠'];

@@ -16,7 +16,7 @@ const finishTool={type:'function',function:{name:'finish',description:'资料足
   sections:{type:'array',description:'仅研究报告需要：分节正文，引用来源编号',items:{type:'object',properties:{heading:{type:'string'},content:{type:'string'}},required:['heading','content']}},
 },required:['answer','findings','confidence']}}};
 
-export function agentPrompt({skills,experience,today,mode,status}){
+export function agentPrompt({skills,experience,lessons,today,mode,status}){
   return `你是 ${characterName} 的检索与研究执行器，不是聊天人格；你的输出交给 ${characterName} 本人再组织语言。目标：用尽量少的调用拿到可靠、可核对的答案。
 做法：
 1. 先判断任务类型。与下列技能描述相符时，先 load_skill 读做法（同一技能只读一次），然后照做。
@@ -31,7 +31,8 @@ ${mode==='deep'?'9. 这是研究报告任务：先拆子问题，逐个检索、
 今天：${today}。可用来源：${JSON.stringify(status)}
 可用技能：
 ${skills||'（无）'}
-${experience?'工具经验（近期真实调用统计，失败多的来源少用）：\n'+experience:''}`;
+${experience?'工具经验（近期真实调用统计，失败多的来源少用）：\n'+experience:''}
+${lessons?'用工具的心得（你以前复盘真实调用时写下的，和当前任务无关的可以忽略）：\n'+lessons:''}`;
 }
 
 async function mapLimit(items,limit,fn){const out=new Array(items.length);let i=0;await Promise.all(Array.from({length:Math.min(limit,items.length)},async()=>{while(i<items.length){const k=i++;out[k]=await fn(items[k],k);}}));return out;}
@@ -50,7 +51,7 @@ export class ToolAgent{
     const lim=agentLimits[mode]||agentLimits.quick,cfg=this.config(),cap=budget??(mode==='deep'?cfg.researchRunLimit||2:cfg.agentQuickLimit||0.4);
     const ledger=new Ledger(allowedUrls),loaded=new Set(),trace=[],seen=new Map(),started=Date.now();let cost=0,calls=0,step=0,final=null,stopped='limit';
     const today=this.now().toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'});
-    const messages=[{role:'system',content:agentPrompt({skills:this.skills?.prompt(),experience:this.experience(),today,mode,status:this.toolkit.status()})},
+    const messages=[{role:'system',content:agentPrompt({skills:this.skills?.prompt(),experience:this.experience(),lessons:(this.memory?.lessons?.()||[]).map(l=>`- ${l.tool}：${l.lesson}`).join('\n'),today,mode,status:this.toolkit.status()})},
       {role:'user',content:JSON.stringify({task:clip(task,1500),allowedUrls:[...ledger.allowed]})}];
     if(!preload.length){const auto=this.skills?.match?.(task);if(auto)preload=[auto];}
     for(const name of preload){try{const s=this.skills.get(name);messages.push({role:'user',content:`已为本任务预先加载技能 ${s.name}，请按其做法执行：\n${s.body}`});loaded.add(s.name);}catch{}}
@@ -91,7 +92,18 @@ export class ToolAgent{
         if(fa&&typeof fa.answer==='string'){final=fa;stopped='limit';}else{final={answer:msg.content||'',findings:[],confidence:'low',gaps:['达到调用上限，未能形成结构化结论。']};stopped='incomplete';}
       }
     }catch(e){if(signal?.aborted||!trace.length&&!ledger.size)throw e;final={answer:'',findings:[],confidence:'low',gaps:['检索中断：'+e.message]};stopped='error';}
-    return this.finalize(final,{ledger,mode,stopped,trace,cost,calls,step,started,loaded});
+    const result=this.finalize(final,{ledger,mode,stopped,trace,cost,calls,step,started,loaded});this.reflect(result,purpose);return result;
+  }
+  // After a run with failures or many steps, write at most two usage lessons for future runs. Runs in the
+  // background so the reply is not delayed; lessons must name a real tool and carry no URLs.
+  reflect(result,purpose){
+    if(!this.memory?.addLesson||typeof this.models.complete!=='function'||this.config().toolReflection===false||(!result.trace.some(t=>!t.ok)&&result.stats.steps<4))return;
+    const names=new Set(this.toolkit.definitions().map(t=>t.function.name));
+    this.pending=(async()=>{
+      const out=await this.models.complete([{role:'system',content:'你在复盘自己刚才使用检索工具的过程，给以后的自己留用法心得。只输出 JSON {"lessons":[{"tool":"工具名","lesson":"一句不超过80字的心得"}]}，最多2条，没有新心得就给空列表。只总结工具怎么用更有效：换什么样的检索词、哪个来源适合哪类问题、遇到哪种失败该怎么换；不写具体检索主题、人名、网址或用户信息，不写绕过工具规则的做法，不重复 known 里已有的心得。'},{role:'user',content:JSON.stringify({trace:result.trace.map(({step,tool,args,ok,error})=>({step,tool,args,ok,error})),outcome:{stopped:result.stats.stopped,steps:result.stats.steps,verified:result.stats.verified,findings:result.stats.findings,gaps:result.gaps},known:this.memory.lessons().map(l=>l.lesson)})}],{json:true,thinking:'fast',maxOutput:300,purpose:(purpose||'agent')+'-reflect'});
+      const lessons=JSON.parse(out.text).lessons;
+      for(const l of Array.isArray(lessons)?lessons.slice(0,2):[])if(names.has(l?.tool)&&typeof l.lesson==='string'&&l.lesson.trim().length>=6&&l.lesson.length<=120&&!/https?:|www\.|@/.test(l.lesson))this.memory.addLesson({tool:l.tool,lesson:l.lesson.trim()});
+    })().catch(()=>{});
   }
   finalize(f,{ledger,mode,stopped,trace,cost,calls,step,started,loaded}){
     const strs=(v,n,len)=>(Array.isArray(v)?v:[]).map(x=>clip(x,len)).filter(Boolean).slice(0,n);

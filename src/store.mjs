@@ -49,6 +49,7 @@ export class Store {
     if(this.db.prepare("SELECT 1 FROM sqlite_master WHERE name='tool_cache'").get())this.db.exec('DELETE FROM tool_cache');
     if(this.db.prepare("SELECT 1 FROM sqlite_master WHERE name='research_cards'").get())this.db.exec('DELETE FROM research_cards; UPDATE cortex_meta SET value=value+1 WHERE id=1');
     if(this.db.prepare("SELECT 1 FROM sqlite_master WHERE name='capability_runs'").get())this.db.exec('DELETE FROM capability_runs');
+    if(this.db.prepare("SELECT 1 FROM sqlite_master WHERE name='tool_lessons'").get())this.db.exec('DELETE FROM tool_lessons');
     if(this.db.prepare("SELECT 1 FROM sqlite_master WHERE name='vision_cache'").get())this.db.exec('DELETE FROM vision_cache; UPDATE vision_epoch SET value=value+1 WHERE id=1');
     if(this.db.prepare("SELECT 1 FROM sqlite_master WHERE name='weixin_private'").get())this.db.exec("DELETE FROM weixin_private WHERE key LIKE 'inbound-media:%'");
     this.db.exec('DELETE FROM chat; DELETE FROM history;');

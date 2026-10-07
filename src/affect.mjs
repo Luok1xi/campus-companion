@@ -32,6 +32,3 @@ export function silenceDecision(p,message,now){const a=ensureAffect(p,now);
   if(a.listeningUntil>now)a.listeningUntil=0; // A new topic or question is a fresh invitation, not a loyalty test.
   return false;
 }
-export const emotionalVoice=`${characterName} 的情绪表达温柔、坦率，开心可以流露，关心可以直说，被夸也可以高兴。情绪沿着真实互动延续，不要求每轮表演同一种反应。
-对明确的分歧可以温和说明感受；普通纠正不视为伤害，话题变化后自然接话。初识也可以亲切，恋爱关系仍需双方确认。
-学习、被理解与甜食是角色偏好；虚拟糖果免费，不以充值、回复频率或任务完成交换亲密感。`;

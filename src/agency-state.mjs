@@ -4,6 +4,8 @@ export function ensureAgency(s,now){
   // Current preference: reading diaries, with music creation paused. Keep older artifacts as history.
   if((a.preferenceVersion||0)<2){a.preferenceVersion=2;a.creationEnabled=false;a.shareIdleMinutes=30;a.shareStyle='diary';}
   if((a.conversationVersion||0)<2){a.conversationVersion=2;a.dailyBurstLimit=6;a.maxUnanswered=0;a.shareCheckLimit=12;}
+  // People stop texting after a few unanswered messages; 0 used to mean unlimited.
+  if((a.conversationVersion||0)<3){a.conversationVersion=3;if(!a.maxUnanswered)a.maxUnanswered=3;}
   a.interests??={study:['能源与矿业','机器人','AI','数学','学习方法'],leisure:['动漫','J-pop','音乐创作'],reflection:['哲学思考','社会上有意思的事情'],source:'用户明确指定：学习之余喜欢动漫、音乐和创作，知乎优先哲学与学习'};
   // The 2026-10-06 redesign adds the character's own field without dropping interests the user chose.
   if((a.interestsVersion||0)<2){a.interestsVersion=2;if(!a.interests.study.includes('能源与矿业'))a.interests.study.unshift('能源与矿业');}

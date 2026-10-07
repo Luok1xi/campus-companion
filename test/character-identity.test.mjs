@@ -47,7 +47,7 @@ test('live writer and QQ import use the same current personality without transpo
     assert.ok(!prompt.includes('当前表达方向是温柔、单纯、可爱、开朗'));
     for(const alias of ['Miku','墨玉','北矿娘','小煤渣'])assert.ok(characterNames.includes(alias));
     const role=readFileSync(new URL('../roles/小煤渣.md',import.meta.url),'utf8');
-    for(const key of ['identity','personality','voice','care','interests','lore'])assert.ok(role.includes(characterCard[key]));
+    for(const key of ['identity','personality','voice','care','self','interests','lore'])assert.ok(role.includes(characterCard[key]));
     assert.ok(role.length<6000);assert.doesNotMatch(role,/\[SILENT\]|qq_send_message|qq_mark_read/);
   }finally{store.close();}
 });
