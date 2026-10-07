@@ -56,6 +56,15 @@ test('she signs in with the site CSRF flow, posts go into the review queue, and 
   }finally{f.store.close();}
 });
 
+test('only an expired session or CSRF token triggers a new login; other refusals do not burn the login limit',async()=>{
+  const f=fixture();try{
+    await f.client.call('notifications');assert.equal(f.hub.logins,1);
+    const real=f.hub.fetcher;f.hub.fetcher=async(url,o)=>/replies$/.test(new URL(url).pathname)?new Response(JSON.stringify({error:'请先验证邮箱再参与共建。'}),{status:403,headers:{'Content-Type':'application/json'}}):real(url,o);
+    f.client.fetcher=f.hub.fetcher;await assert.rejects(f.client.call('entries/e1/replies',{method:'POST',body:{body:'hi'}}),/验证邮箱/);assert.equal(f.hub.logins,1);
+    f.hub.csrf='rotated';await f.client.call('circle/posts',{method:'POST',body:{data:{title:'t',body:'b',circle:{board:'daily',format:'thread',campus:'all'}}}});assert.equal(f.hub.logins,2);
+  }finally{f.store.close();}
+});
+
 test('in draft mode posts wait for the owner, and a draft quoting private chat is held back',async()=>{
   const f=fixture({mode:'draft'});try{
     f.store.addChat('user','我下周三要去医院复查',now);

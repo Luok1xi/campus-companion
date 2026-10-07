@@ -54,10 +54,11 @@ export class HubClient{
     await this.request('auth/session');const r=await this.request('auth/login',{method:'POST',body:{email:c.siteEmail,password:c.sitePassword}});
     if(!r.user)throw new Error('网站登录失败。');this.user=r.user;return r.user;
   }
-  // Signs in on first use and once more if the session has expired.
+  // Signs in on first use, and again only when the session or CSRF token has expired. Other refusals (an
+  // unverified email, no permission) are returned as errors: retrying would burn the site's login limit.
   async call(path,opts){
     if(!this.user)await this.login();
-    try{return await this.request(path,opts);}catch(e){if(e.status!==401&&e.status!==403)throw e;await this.login();return this.request(path,opts);}
+    try{return await this.request(path,opts);}catch(e){if(!(e.status===401||e.status===403&&/安全验证/.test(e.message)))throw e;await this.login();return this.request(path,opts);}
   }
 }
 function runValidate(cwd){
