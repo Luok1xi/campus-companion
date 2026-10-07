@@ -26,7 +26,7 @@ export function initVoice({api,guard,notify,token,config}){
   function browserSay(text){return new Promise(resolve=>{if(!('speechSynthesis' in window)){resolve();return;}const u=new SpeechSynthesisUtterance(text),voice=speechSynthesis.getVoices().find(v=>/^zh/i.test(v.lang));if(voice)u.voice=voice;u.lang='zh-CN';u.rate=Number(config().ttsSpeed)||1;u.pitch=1.1;u.onend=u.onerror=()=>resolve();speechSynthesis.speak(u);});}
   async function fetchAudio(text){const res=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json','X-Miku-Token':token()},body:JSON.stringify({text})});if(!res.ok)throw new Error((await res.json().catch(()=>({}))).error||'语音合成失败。');return URL.createObjectURL(await res.blob());}
   function play(url,run){return new Promise(resolve=>{if(run!==generation){resolve();return;}const audio=new Audio(url);current=audio;audio.onended=audio.onerror=()=>{URL.revokeObjectURL(url);resolve();};audio.play().catch(()=>resolve());});}
-  // Speaks one line and resolves when it has finished; the stage waits on this to advance.
+  // Speaks one line and resolves when it has finished.
   async function say(text,next){const engine=config().ttsEngine,line=strip(text);if(!line||engine==='off')return;const run=generation;
     if(engine==='browser')return browserSay(line);
     const url=await (next||fetchAudio(line));return play(url,run);}
@@ -34,6 +34,6 @@ export function initVoice({api,guard,notify,token,config}){
     for(let i=0;i<texts.length&&run===generation;i++){const engine=config().ttsEngine;if(engine==='off')return;
       if(engine==='browser'){await browserSay(texts[i]);continue;}
       const url=await (pending||fetchAudio(texts[i]));pending=i+1<texts.length?fetchAudio(texts[i+1]):null;await play(url,run);}}
-  document.addEventListener('companion:reply',e=>{if(!auto||e.detail.silent||document.body.classList.contains('stage-open'))return;const lines=(e.detail.messages||[]).filter(m=>m.type==='text').map(m=>m.text);void sayAll(lines).catch(err=>notify(err.message,true));});
+  document.addEventListener('companion:reply',e=>{if(!auto||e.detail.silent)return;const lines=(e.detail.messages||[]).filter(m=>m.type==='text').map(m=>m.text);void sayAll(lines).catch(err=>notify(err.message,true));});
   return {say,stop,fetchAudio,enabled:()=>auto&&config().ttsEngine!=='off',refresh:fill};
 }

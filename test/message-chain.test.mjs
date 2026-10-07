@@ -68,7 +68,3 @@ test('academic findings use the shared writer and old fixed reports are retired'
  f.models.complete=async(m,o)=>{f.requests.push({messages:m,opts:o});return {text:o.purpose==='initiative-decision'?JSON.stringify({action:'share_research',reason:'讲座和目标有关'}):JSON.stringify({messages:[{type:'text',text:'这场讲座你可能会喜欢。'}]})};};
  await a.runShare();assert.equal(f.store.messages().filter(r=>r.payload.kind==='proactive').length,3);assert.match(f.requests.at(-1).messages[0].content,/当前角色卡/);assert.equal(f.store.read().research.items[0].sharedAt,f.service.clock());
 }finally{f.store.close();}});
-test('a text line may carry a known stage expression; unknown expressions are dropped, not rejected',()=>{
- const r=parseChain(JSON.stringify({messages:[{type:'text',text:'嗨嗨',expression:'happy'},{type:'text',text:'这样啊',expression:'smirk'},{type:'text',text:'嗯'}]}));
- assert.deepEqual(r.messages,[{type:'text',text:'嗨嗨',expression:'happy'},{type:'text',text:'这样啊'},{type:'text',text:'嗯'}]);assert.equal(r.text,'嗨嗨\n\n这样啊\n\n嗯');
-});

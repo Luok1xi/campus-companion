@@ -5,7 +5,6 @@ const stickerHtml=id=>/^(miku_(01|02|03|04|06|07|08|09|11|12|13|14|16)|found_[a-
 import {initCognition} from './cognition-ui.js';
 import {initTools} from './tools-ui.js';
 import {initVoice} from './voice-ui.js';
-import {initStage} from './stage-ui.js';
 import {initMemorySearch} from './memory-search-ui.js';
 import {initResearchKit} from './research-kit-ui.js';
 import {renderWebLife} from './web-life-ui.js';
@@ -107,6 +106,6 @@ document.body.addEventListener('click',guard(async e=>{const b=e.target.closest(
   if(action==='confirm')await cmd('proposal.confirm',{id:key});if(action==='reject')await cmd('proposal.reject',{id:key});
   if(action==='confirm-draft'){const edited=document.querySelector(`[data-draft="${CSS.escape(key)}"]`);await cmd('draft.confirm',{id:key,courses:JSON.parse(edited.value)});}
 }));
-async function start(){const data=await api('/api/bootstrap');setCharacter(data.character);csrf=data.csrf;initTools({api,guard,notify});window.companionVoice=initVoice({api,guard,notify,token:()=>csrf,config:()=>config});initStage({voice:window.companionVoice});initMemorySearch({api,guard,notify,config:()=>config});initCognition({api,guard,notify});state=data.state;config=data.config;usage=data.usage;$('#plan-date').value=localDate(Math.floor(Date.now()/60000));fillForm($('#settings-form'),state.settings);fillForm($('#config-form'),config);fillForm($('#feishu-form'),config);$('#task-form').elements.deadline.value=dateInput(Math.floor(Date.now()/60000)+1440);$('#feishu-state').textContent=data.feishu.status;render();initResearchKit({api,guard,notify});document.querySelector('#send').disabled=false;setInterval(()=>{if(!busy)void refresh().catch(()=>{$('#model-status').textContent='本地服务已断开';});},15000);}
+async function start(){const data=await api('/api/bootstrap');setCharacter(data.character);csrf=data.csrf;initTools({api,guard,notify});window.companionVoice=initVoice({api,guard,notify,token:()=>csrf,config:()=>config});initMemorySearch({api,guard,notify,config:()=>config});initCognition({api,guard,notify});state=data.state;config=data.config;usage=data.usage;$('#plan-date').value=localDate(Math.floor(Date.now()/60000));fillForm($('#settings-form'),state.settings);fillForm($('#config-form'),config);fillForm($('#feishu-form'),config);$('#task-form').elements.deadline.value=dateInput(Math.floor(Date.now()/60000)+1440);$('#feishu-state').textContent=data.feishu.status;render();initResearchKit({api,guard,notify});document.querySelector('#send').disabled=false;setInterval(()=>{if(!busy)void refresh().catch(()=>{$('#model-status').textContent='本地服务已断开';});},15000);}
 initWeixin({api,notify});
 void start().catch(e=>notify(e.message,true));
