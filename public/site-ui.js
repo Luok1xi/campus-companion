@@ -3,7 +3,7 @@ const statusNames={draft:'等你确认',blocked:'疑似带私人内容，已拦�
 const boardNames={daily:'矿大日常',courses:'选课与学习引导',makers:'创作与开源',teams:'组队与机会',research:'科研与生涯',reading:'精选阅读'};
 export function initSite({api,guard,notify,config}){
   const card=document.createElement('div');card.className='card';card.id='site-panel';
-  card.innerHTML=`<p class="eyebrow">LUOKIXI</p><h2>帮你照看网站</h2><p class="muted">给她在 luokixi 注册一个普通账号（不要给管理员权限），填在下面。她会每半小时看看网站在不在线；填了网站目录的话，每天跑一次内容校验。她会回复别人在她帖子下的留言和 @ 她的消息，也会主动把学到的东西、学校通知、让人开心的见闻写成帖子。所有帖子都要经过网站审核才公开；回复要不要审核，取决于你在网站上有没有把她的账号设为可信。</p>
+  card.innerHTML=`<p class="eyebrow">LUOKIXI</p><h2>帮你照看网站</h2><p class="muted">给她在 luokixi 注册一个普通账号（不要给管理员权限），填在下面。她会每半小时看看网站在不在线；填了网站目录的话，每天跑一次内容校验。她会回复别人在她帖子下的留言和 @ 她的消息，也会主动把学到的东西、学校通知、让人开心的见闻写成帖子。所有帖子都要经过网站审核才公开；她的回复默认也要审核，想让回复直接公开，要用命令把她的账号设为可信（见 COMPANION-SYSTEM.md）。昵称不要用“北矿娘”，网站里已有同名的系统角色。</p>
   <form id="site-config" class="form-grid"><label>网站地址<input name="siteBase" placeholder="http://127.0.0.1:17860"></label><label>她的账号邮箱<input name="siteEmail" type="email" autocomplete="off"></label>
   <label>她的账号密码（只存在本机，不回显）<input name="sitePassword" type="password" autocomplete="new-password"></label><label>网站项目目录（可选，用于内容校验）<input name="sitePath" placeholder="D:/projects/luokixi"></label>
   <div class="full actions"><button class="primary">保存账号</button></div></form>

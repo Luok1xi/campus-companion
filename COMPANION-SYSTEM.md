@@ -72,7 +72,12 @@ flowchart LR
 
 对象是你的 luokixi 校园社区。设置在“连接与设置 → 帮你照看网站”：
 
-1. 在 luokixi 给她注册一个**普通账号**并验证邮箱。不要给她管理员权限。
+1. 在 luokixi 给她注册一个**普通账号**并验证邮箱。不要给她管理员权限。以下步骤已在真实网站代码上跑通：
+   - 先启动网站（项目目录运行 `powershell -NoProfile -ExecutionPolicy Bypass -File campus\start.ps1`），用无痕窗口打开 `http://127.0.0.1:17860/auth.html?mode=register`。已登录时网页不显示注册表单，所以要用无痕窗口或先退出。
+   - 邮箱、用户名都只能用英文和数字（用户名 3–30 位，例如 `xiaomeizha`）。昵称填 `小煤渣`，**不要填“北矿娘”**：网站已经有一个名叫“北矿娘”的系统角色，两个同名会让同学分不清。密码至少 12 位，不能和用户名或邮箱太像，不能是常见密码，也不能全是数字。
+   - 网站没配发信服务时，验证邮件不会发到邮箱，只存在 `campus\.data\hub\mail-preview\` 文件夹里（`.log` 文件）。在 PowerShell 里查看最新一封：`Get-ChildItem .\campus\.data\hub\mail-preview\*.log | Sort-Object LastWriteTime | Select-Object -Last 1 | Get-Content -Encoding UTF8`。
+   - 在这台电脑的浏览器里打开邮件里的 `http://127.0.0.1:17860/hub/#verify/...` 链接，24 小时内有效。看到“邮箱验证成功”就完成了。
+   - **先验证邮箱，再把账号填进小煤渣的设置**。没验证的账号发帖会被拒绝。
 2. 填写网站地址（默认 `http://127.0.0.1:17860`）、她的邮箱和密码。网站项目目录可以不填。
 3. 勾选“让她照看网站”，选择帖子怎么发：
    - 先给我看：她写好后，你在这个页面点“确认提交”。
@@ -88,7 +93,9 @@ flowchart LR
 保护措施：
 
 - 写公开内容时，提示词里没有你的记忆、聊天和日程。如果草稿还是引用了这些内容，会被拦下，不会发出。
-- 网站本身要求所有帖子经过审核。她的回复要不要审核，取决于你有没有在网站上把她的账号设为可信。
+- 网站本身要求所有帖子经过审核。她的回复默认也要审核；如果你想让她的回复直接公开，网站上没有这个按钮，要在网站项目目录运行一条命令，把她的账号设为可信（trusted）：
+  `.\campus\.venv\Scripts\python.exe campus\manage_hub.py shell -v 0 -c "from hub.models import Member; print(Member.objects.filter(username__iexact='xiaomeizha', is_staff=False).update(trusted=True))"`
+  输出 `1` 就是成功；把 `True` 换成 `False` 可以改回来。
 - 她的账号密码只存在本机配置里，不会发给模型。
 
 ## 参考过的开源项目

@@ -48,7 +48,7 @@ test('she signs in with the site CSRF flow, posts go into the review queue, and 
     const d=await f.keeper.announce('k:k1');
     assert.equal(d.status,'pending-review');assert.equal(d.siteEntryId,'e1');assert.deepEqual(f.hub.submitted,[{id:'e1',revision:1}]);
     const post=f.hub.posts[0];assert.deepEqual(post.circle,{board:'research',format:'thread',campus:'all'});assert.equal(post.rightsConfirmed,true);assert.match(post.body,/https:\/\/example\.org\/dof/);assert.match(post.body,/站内 AI 助手/);
-    const p=f.prompts.find(x=>x.purpose==='initiative-site-announce');assert.match(p.system,/公开场合/);for(const secret of ['花生','复查'])assert.ok(!(p.system+p.user).includes(secret));
+    const p=f.prompts.find(x=>x.purpose==='initiative-site-announce');assert.match(p.system,/公开场合/);assert.match(p.system,/不是你；有人把你叫成北矿娘/);for(const secret of ['花生','复查'])assert.ok(!(p.system+p.user).includes(secret));
     assert.equal(f.keeper.announceMaterial(f.service.state()).length,0,'the same material is not announced twice');
     f.hub.session='expired-elsewhere';
     f.outputs['initiative-site-reply']={reply:'可以的～'};f.hub.entries.e1={id:'e1',data:{title:'刚体有几个自由度？'},replies:[{author:{username:'student'},body:'空间里呢？',state:'published'}]};
