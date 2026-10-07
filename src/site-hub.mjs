@@ -10,8 +10,9 @@ import {selfState} from './self-state.mjs';
 import {characterName} from './character-card.mjs';
 
 // Luokixi, the owner's campus community site. She signs in with her own ordinary (non-staff) account, so every
-// post she makes waits in the site's review queue, and her replies publish directly only if the owner marks that
-// account trusted on the site. Credentials stay in local config and never reach a model.
+// post she makes waits in the site's review queue, and her replies publish directly only if the owner sets the
+// account's trusted flag with a shell command (the site has no toggle for it). Credentials stay in local config
+// and never reach a model.
 export const siteBoards=['daily','courses','makers','teams','research','reading'];
 const SIGN='\n\n——'+characterName+'（站内 AI 助手）';
 export function ensureSite(s){return s.site??={enabled:false,mode:'draft',board:'daily',checks:[],drafts:[],handled:[],lessons:[],outage:null,validation:null,lastNotificationsAt:null};}
