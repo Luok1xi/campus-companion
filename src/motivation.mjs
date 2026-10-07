@@ -12,7 +12,7 @@ export function reflectTurn(persona,{message,event=null,styleLearning=null,now,i
   if(event==='interest'){inner.needs.curiosity=clamp(inner.needs.curiosity+.12);inner.needs.expression=clamp(inner.needs.expression+.1);}
   if(event==='conflict')inner.needs.quiet=clamp(inner.needs.quiet+.2);
   if(event==='repaired')inner.needs.quiet=clamp(inner.needs.quiet-.1);
-  if(styleLearning&&typeof styleLearning.evidence==='string'&&message.includes(styleLearning.evidence)&&typeof styleLearning.rule==='string'&&/说话|语气|回复|回答|问号|提问|反问|简短|人机|客服|网络用语|装萌|卖萌|不可爱|冷淡|介绍自己/.test(styleLearning.evidence)){
+  if(styleLearning&&typeof styleLearning.evidence==='string'&&message.includes(styleLearning.evidence)&&typeof styleLearning.rule==='string'&&/说话|语气|回复|回答|问号|提问|反问|追问|问我|简短|啰嗦|太长|字数|人机|客服|网络用语|装萌|卖萌|撒娇|不可爱|冷淡|介绍自己|表情|标点|感叹号|波浪号|省略号|语气词|口头禅|自称/.test(styleLearning.evidence)){
     const item={id,voiceVersion,rule:styleLearning.rule.slice(0,200),source:styleLearning.evidence.slice(0,300),at:now,kind:'user-style-preference'};
     inner.styleRules=inner.styleRules.filter(r=>r.rule!==item.rule).concat(item).slice(-8);
   }
