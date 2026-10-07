@@ -55,8 +55,9 @@ export class ToolAgent{
       {role:'user',content:JSON.stringify({task:clip(task,1500),allowedUrls:[...ledger.allowed]})}];
     if(!preload.length){const auto=this.skills?.match?.(task);if(auto)preload=[auto];}
     for(const name of preload){try{const s=this.skills.get(name);messages.push({role:'user',content:`已为本任务预先加载技能 ${s.name}，请按其做法执行：\n${s.body}`});loaded.add(s.name);}catch{}}
-    const tools=[...this.toolkit.definitions(),finishTool];
-    const ctx={ledger,skills:loaded};
+    // The executor is read-only; search_tools can add tools from search-only groups for the rest of the run.
+    const active=new Set(),tools=()=>[...this.toolkit.definitions({active,maxRisk:'read'}),finishTool];
+    const ctx={ledger,skills:loaded,active,maxRisk:'read',activate:names=>{for(const n of names)active.add(n);}};
     const step1=async(toolset,extraNote)=>{
       if(extraNote)messages.push({role:'user',content:extraNote});
       this.compact(messages,lim.keep,mode);
@@ -68,7 +69,7 @@ export class ToolAgent{
         if(signal?.aborted)throw new Error('检索已取消。');
         step++;
         const closing=step===lim.steps||calls>=lim.calls||Date.now()-started>lim.ms*0.8||cost>cap*0.75;
-        const msg=await step1(closing?[finishTool]:tools,closing?'时间、费用或步数即将用完：不要再检索，现在根据已有资料调用 finish；证据不足的部分写进 gaps。':null);
+        const msg=await step1(closing?[finishTool]:tools(),closing?'时间、费用或步数即将用完：不要再检索，现在根据已有资料调用 finish；证据不足的部分写进 gaps。':null);
         const tc=msg.tool_calls||[];
         if(!tc.length){if(msg.content.trim()){final={answer:msg.content,findings:[],confidence:'low',gaps:['执行器没有按结构提交结论。']};stopped='text';break;}
           messages.push({role:'user',content:'请继续调用工具，或调用 finish 提交结论。'});continue;}
@@ -98,7 +99,7 @@ export class ToolAgent{
   // background so the reply is not delayed; lessons must name a real tool and carry no URLs.
   reflect(result,purpose){
     if(!this.memory?.addLesson||typeof this.models.complete!=='function'||this.config().toolReflection===false||(!result.trace.some(t=>!t.ok)&&result.stats.steps<4))return;
-    const names=new Set(this.toolkit.definitions().map(t=>t.function.name));
+    const names=this.toolkit.names?.()||new Set(this.toolkit.definitions().map(t=>t.function.name));
     this.pending=(async()=>{
       const out=await this.models.complete([{role:'system',content:'你在复盘自己刚才使用检索工具的过程，给以后的自己留用法心得。只输出 JSON {"lessons":[{"tool":"工具名","lesson":"一句不超过80字的心得"}]}，最多2条，没有新心得就给空列表。只总结工具怎么用更有效：换什么样的检索词、哪个来源适合哪类问题、遇到哪种失败该怎么换；不写具体检索主题、人名、网址或用户信息，不写绕过工具规则的做法，不重复 known 里已有的心得。'},{role:'user',content:JSON.stringify({trace:result.trace.map(({step,tool,args,ok,error})=>({step,tool,args,ok,error})),outcome:{stopped:result.stats.stopped,steps:result.stats.steps,verified:result.stats.verified,findings:result.stats.findings,gaps:result.gaps},known:this.memory.lessons().map(l=>l.lesson)})}],{json:true,thinking:'fast',maxOutput:300,purpose:(purpose||'agent')+'-reflect'});
       const lessons=JSON.parse(out.text).lessons;

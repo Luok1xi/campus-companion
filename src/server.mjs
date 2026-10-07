@@ -34,6 +34,8 @@ import {Research} from './research.mjs';
 import {Skills} from './skills.mjs';
 import {ResearchToolkit} from './research-tools.mjs';
 import {ToolAgent} from './agent.mjs';
+import {ToolRegistry} from './tool-registry.mjs';
+import {connectMcp} from './mcp-tools.mjs';
 import {SelfStudy} from './self-study.mjs';
 import {selfState} from './self-state.mjs';
 import {ResearchProjects,reportMarkdown,reportBibtex} from './research-projects.mjs';
@@ -54,8 +56,9 @@ export async function createApp({dbPath=resolve(process.env.MIKU_DATA||root+'/da
   chat.vision=vision;chat.tools=tools;chat.cortex=cortex;
   // Skill-guided multi-step research: toolkit (read-only sources) + agent loop + background projects.
   const agentConfig=()=>({...readConfig(),...(providedModels&&typeof models.config==='function'?models.config():{})});
-  const skills=new Skills(),toolkit=new ResearchToolkit({config:agentConfig,reader,repositories,models,memory,skills,db:store.db}),agent=new ToolAgent({models,toolkit,skills,memory,config:agentConfig}),projects=new ResearchProjects(service,{agent,chat});
+  const skills=new Skills(),toolkit=new ResearchToolkit({config:agentConfig,reader,repositories,models,memory,skills,db:store.db}),registry=new ToolRegistry({states:()=>service.state().toolGroups||{}}).mount('research',toolkit,{title:'检索与研究',state:'on'}),agent=new ToolAgent({models,toolkit:registry,skills,memory,config:agentConfig}),projects=new ResearchProjects(service,{agent,chat});
   if(agentConfig().agentEnabled!==false){chat.agent=agent;chat.projects=projects;}
+  const mcp=agentConfig().mcpServers.length?await connectMcp(registry,agentConfig().mcpServers):{status:[],close:async()=>{}};
   const webLife=new WebLife(service,models,{reader});
   const selfStudy=new SelfStudy(service,models,agent);
   const agency=new Agency(service,chat,models,learning,webLife,selfStudy);
@@ -84,6 +87,7 @@ export async function createApp({dbPath=resolve(process.env.MIKU_DATA||root+'/da
         if(req.method==='GET'&&url.pathname==='/api/research-kit'){const c=publicConfig(readConfig());json(res,{status:toolkit.status(),skills:skills.catalog(),skillErrors:skills.errors,projects:projects.list(),config:{tavilyConfigured:c.tavilyConfigured,bochaConfigured:c.bochaConfigured,braveConfigured:c.braveConfigured,s2Configured:c.s2Configured,searxngUrl:c.searxngUrl,agentEnabled:c.agentEnabled,agentQuickLimit:c.agentQuickLimit,researchRunLimit:c.researchRunLimit},experience:memory.view().filter(r=>/search|read-|citations|cited-source/.test(r.capability)).slice(0,30)});return;}
         if(req.method==='GET'&&url.pathname==='/api/projects/get'){json(res,projects.row(url.searchParams.get('id')));return;}
         if(req.method==='GET'&&url.pathname==='/api/projects/export'){const row=projects.row(url.searchParams.get('id')),bib=url.searchParams.get('format')==='bib';res.writeHead(200,{'Content-Type':(bib?'application/x-bibtex':'text/markdown')+'; charset=utf-8','Content-Disposition':`attachment; filename="miku-research-${row.id.slice(0,8)}.${bib?'bib':'md'}"`,'Cache-Control':'no-store'});res.end(bib?reportBibtex(row):reportMarkdown(row));return;}
+        if(req.method==='GET'&&url.pathname==='/api/tools/registry'){json(res,{groups:registry.groups(),mcp:mcp.status});return;}
         if(req.method==='GET'&&url.pathname==='/api/tools'){json(res,{browser:browser.status,reading:reader.health,downloads:downloads.list(),traces:tools.traces,vision:'deepseek-flash',capabilities:memory.view()});return;}
         if(req.method==='GET'&&url.pathname.startsWith('/api/download/')){const file=await downloads.file(url.pathname.slice(14));res.writeHead(200,{'Content-Type':file.mime,'Content-Disposition':'attachment; filename="miku-'+file.id.slice(0,12)+'.'+file.ext+'"'});res.end(file.bytes);return;}
         const input=req.method==='POST'?JSON.parse((await body(req)).toString()||'{}'):{};
@@ -102,7 +106,7 @@ export async function createApp({dbPath=resolve(process.env.MIKU_DATA||root+'/da
           try{send('status',{text:'…'});const r=await chat.run(input.text,{requestId:input.requestId||id(),deep:input.deep===true,mode:['auto','fast','deep'].includes(input.mode)?input.mode:'auto',onDelta:text=>send('delta',{text}),onStatus:text=>send('status',{text})});send('done',r);}catch(e){send('error',{error:e.message});}finally{clearInterval(heartbeat);res.end();}return;
         }
         if(req.method==='POST'&&url.pathname==='/api/command'){
-          if(['proposal.create','draft.add','relationship.confirm'].includes(input.action))throw new Error('该操作只能从有效的模型结果或提议进入。');json(res,['agency.settings','agency.clear','web.settings','web.clear','web.source.toggle'].includes(input.action)?service.command(input.action,input.args,input.requestId||id()):await chat.exclusive(()=>service.command(input.action,input.args,input.requestId||id())));return;
+          if(['proposal.create','draft.add','relationship.confirm'].includes(input.action))throw new Error('该操作只能从有效的模型结果或提议进入。');json(res,['agency.settings','agency.clear','web.settings','web.clear','web.source.toggle','tools.group'].includes(input.action)?service.command(input.action,input.args,input.requestId||id()):await chat.exclusive(()=>service.command(input.action,input.args,input.requestId||id())));return;
         }
         if(req.method==='POST'&&url.pathname==='/api/download/remove'){json(res,await downloads.remove(input.id));reader.clear();return;}
         if(req.method==='POST'&&url.pathname==='/api/browser/login'){json(res,await browser.openLogin(input.site));return;}
@@ -163,7 +167,7 @@ export async function createApp({dbPath=resolve(process.env.MIKU_DATA||root+'/da
     }catch(e){if(!res.headersSent)json(res,{error:e.message},400);else res.end();}
   });
   let timer;if(background){const tick=async()=>{void social.tick().catch(e=>{lastError=e.message;});void weixin.processInbox();void feishu.processInbox().catch(e=>{lastError=e.message;});if(!chat.active&&cortex.due())void chat.exclusive(()=>cortex.run()).catch(e=>{lastError=e.message;});else if(!chat.active&&inquiry.due())void chat.exclusive(()=>inquiry.run()).catch(e=>{lastError=e.message;});else if(!chat.active&&webLife.dailyDue())void chat.exclusive(()=>webLife.daily()).catch(e=>{lastError=e.message;});else void agency.tick().catch(e=>{lastError=e.message;});if(!chat.active){void research.tick()?.catch(e=>{lastError=e.message;});}try{await scheduler.tick();}catch(e){lastError=e.message;}};timer=setInterval(tick,20000);timer.unref();projects.kick();await scheduler.tick();weixin.connect();void feishu.connect().catch(()=>{feishu.status='连接失败，请检查凭证和网络。';});}
-  return {server,store,service,models,chat,scheduler,conversations,social,feishu,weixin,learning,research,agency,selfStudy,webLife,vision,browser,downloads,tools,cortex,memory,inquiry,skills,toolkit,agent,projects,async close(){clearInterval(timer);await projects.shutdown();await social.close();await feishu.close();await weixin.close();await agency.inflight;await agent.pending;await scheduler.inflight;await chat.queue;await learning.inflight;await research.inflight;await reader.tail;await browser.close();server.closeAllConnections();await new Promise(r=>server.listening?server.close(r):r());store.close();}};
+  return {server,store,service,models,chat,scheduler,conversations,social,feishu,weixin,learning,research,agency,selfStudy,webLife,vision,browser,downloads,tools,cortex,memory,inquiry,skills,toolkit,registry,agent,projects,async close(){clearInterval(timer);await mcp.close();await projects.shutdown();await social.close();await feishu.close();await weixin.close();await agency.inflight;await agent.pending;await scheduler.inflight;await chat.queue;await learning.inflight;await research.inflight;await reader.tail;await browser.close();server.closeAllConnections();await new Promise(r=>server.listening?server.close(r):r());store.close();}};
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   const app=await createApp();const port=Number(process.env.MIKU_PORT)||17839;

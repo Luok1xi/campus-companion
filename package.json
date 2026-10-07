@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@larksuiteoapi/node-sdk": "^1.73.3",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@mozilla/readability": "^0.6.0",
     "@napi-rs/canvas": "^1.0.9",
     "fast-xml-parser": "^5.11.1",
