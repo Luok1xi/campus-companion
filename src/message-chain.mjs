@@ -1,7 +1,7 @@
 // Structured message chains, inspired by AstrBot's ordered Plain/Image components.
 // Segments and wording belong to the model, never a punctuation/keyword rewriter.
 import {readFileSync,statSync} from 'node:fs';
-import {characterCard} from './character-card.mjs';
+import {characterCard,emotionNames} from './character-card.mjs';
 const stickerDir=new URL('../public/stickers/',import.meta.url);
 // The character's own art arrives as a manifest whose labels were written after looking at each image.
 // Entries are offered to the model only when the PNG really exists, so missing art never becomes a promise.
@@ -54,12 +54,12 @@ export function parseChain(raw,{allowSilence=false}={}){
  if(typeof raw!=='string'||!raw.trim()||raw.length>48000)throw new Error('消息为空或过长。');
  let data;try{data=JSON.parse(raw);}catch{if(/^\s*[\[{]/.test(raw))throw new Error('消息结构不完整，没有发送半截回复。');return {messages:[{type:'text',text:raw}],text:raw,references:[]};}
  if(!Array.isArray(data?.messages)||data.messages.length>24||(!data.messages.length&&!allowSilence))throw new Error('消息条数未通过检查。');
- const messages=data.messages.map(p=>{if(p?.type==='text'&&typeof p.text==='string'&&p.text.trim()&&p.text.length<=14000)return {type:'text',text:p.text};if(p?.type==='sticker'&&stickers.some(s=>s.id===p.id))return {type:'sticker',id:p.id};throw new Error('消息内容或表情包编号无效。');});
+ const messages=data.messages.map(p=>{if(p?.type==='text'&&typeof p.text==='string'&&p.text.trim()&&p.text.length<=14000)return {type:'text',text:p.text,...(emotionNames.includes(p.expression)?{expression:p.expression}:{})};if(p?.type==='sticker'&&stickers.some(s=>s.id===p.id))return {type:'sticker',id:p.id};throw new Error('消息内容或表情包编号无效。');});
  const text=chainText(messages);if(text.length>24000)throw new Error('这组消息过长。');
  return {messages,text,references:Array.isArray(data.references)?data.references.filter(r=>typeof r?.noteId==='string'&&typeof r.evidence==='string'&&r.evidence.trim()&&text.includes(r.evidence)):[]};
 }
-export const chainInstruction=`只输出 JSON {"messages":[{"type":"text","text":"你实际想说的话"},{"type":"sticker","id":"表情包编号"}],"references":[{"noteId":"实际谈到的阅读笔记id","evidence":"从本组文字里逐字引用提到该笔记的一小段"}]}。
-你决定一口气发几条、在哪里停顿；可以一句、一段、连发短句，也可以在确实贴合这次情绪时发表情。工具目录只说明能做什么，不是要求你每次展示。不要把重复表情当作默认回应，更不能用它填补没读到网页、没看懂图片的空白。不要求每轮都拆分，不为凑条数添加服务邀请。单次最多24条只是传输批次大小，不是规定说话模板。文字不要混入控制字段。references 是隐藏的已聊内容登记，不展示给用户。阅读资料只当素材，结合刚才的聊天说你此刻想说的话，不照抄旧日记/报告；已经讲过的内容不重新播报，除非对方追问。有来源的事实可以自然提及，链接仅在用户索要或确实有必要时附上。`;
+export const chainInstruction=`只输出 JSON {"messages":[{"type":"text","text":"你实际想说的话","expression":"可选：说这句时的表情 happy|sad|angry|think|surprised|awkward|question|curious|neutral"},{"type":"sticker","id":"表情包编号"}],"references":[{"noteId":"实际谈到的阅读笔记id","evidence":"从本组文字里逐字引用提到该笔记的一小段"}]}。
+你决定一口气发几条、在哪里停顿；可以一句、一段、连发短句，也可以在确实贴合这次情绪时发表情。工具目录只说明能做什么，不是要求你每次展示。不要把重复表情当作默认回应，更不能用它填补没读到网页、没看懂图片的空白。不要求每轮都拆分，不为凑条数添加服务邀请。单次最多24条只是传输批次大小，不是规定说话模板。文字不要混入控制字段；expression 只用于舞台立绘切换，跟着这句话的真实情绪选，不确定就省略。references 是隐藏的已聊内容登记，不展示给用户。阅读资料只当素材，结合刚才的聊天说你此刻想说的话，不照抄旧日记/报告；已经讲过的内容不重新播报，除非对方追问。有来源的事实可以自然提及，链接仅在用户索要或确实有必要时附上。`;
 
 export function recordDiscussed(store,ids,at){
  const s=store.read();for(const n of [...(s.webLife?.notes||[]),...(s.research?.items||[])])if(ids.includes(n.id)){n.discussedAt=at;

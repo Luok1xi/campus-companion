@@ -34,6 +34,6 @@ export function initVoice({api,guard,notify,token,config}){
     for(let i=0;i<texts.length&&run===generation;i++){const engine=config().ttsEngine;if(engine==='off')return;
       if(engine==='browser'){await browserSay(texts[i]);continue;}
       const url=await (pending||fetchAudio(texts[i]));pending=i+1<texts.length?fetchAudio(texts[i+1]):null;await play(url,run);}}
-  document.addEventListener('companion:reply',e=>{if(!auto||document.body.classList.contains('stage-open'))return;const lines=(e.detail.messages||[]).filter(m=>m.type==='text').map(m=>m.text);void sayAll(lines).catch(err=>notify(err.message,true));});
+  document.addEventListener('companion:reply',e=>{if(!auto||e.detail.silent||document.body.classList.contains('stage-open'))return;const lines=(e.detail.messages||[]).filter(m=>m.type==='text').map(m=>m.text);void sayAll(lines).catch(err=>notify(err.message,true));});
   return {say,stop,fetchAudio,enabled:()=>auto&&config().ttsEngine!=='off',refresh:fill};
 }

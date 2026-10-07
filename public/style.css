@@ -12,3 +12,11 @@
 .character-portrait[hidden]{display:none}
 .character-portrait img{display:block;max-height:430px;max-width:100%;width:auto;margin:0 auto}
 .character-portrait figcaption{font-size:12px;color:#715f60;margin-top:8px}
+.stage-launch{margin-left:8px;font-size:12px;padding:7px 12px}.voice-toggle{flex-direction:row;align-items:center;margin:0 22px 12px;font-size:12px}
+.stage{position:fixed;inset:0;z-index:30;display:grid;grid-template-rows:1fr auto auto;justify-items:center;padding:18px;background:radial-gradient(circle at 50% 18%,#3f7f74 0%,#1d3e3a 55%,#122826 100%);overflow:hidden}.stage[hidden]{display:none}
+.stage-sprite{align-self:end;height:min(72vh,780px);aspect-ratio:591/810;background-size:300% auto;background-position:0% 0;background-repeat:no-repeat;border-radius:22px 22px 0 0;box-shadow:0 18px 60px #0006}.stage-sprite.swap{animation:stage-swap .22s ease-out}@keyframes stage-swap{from{opacity:.55}to{opacity:1}}.stage-sprite.full{aspect-ratio:2/3;background-size:contain;background-position:center bottom;box-shadow:none}
+.stage-box{position:relative;width:min(920px,100%);margin-top:-40px;background:#102421e8;color:#f2f7f5;border:1px solid #ffffff2e;border-radius:16px;padding:22px 26px 14px;cursor:pointer;min-height:132px}.stage-name{position:absolute;top:-15px;left:22px;background:#c0393b;color:#fff;font-size:13px;font-weight:600;padding:5px 16px;border-radius:999px;letter-spacing:1px}
+.stage-text{margin:6px 0 4px;font-size:17px;line-height:1.95;white-space:pre-wrap;overflow-wrap:anywhere}.stage-hint{display:block;text-align:right;font-size:11px;color:#ffffff99}
+.stage-input{display:flex;gap:8px;width:min(920px,100%);margin-top:12px}.stage-input input{background:#ffffffee}.stage-input button{flex:none;white-space:nowrap}.stage-close{position:absolute;top:16px;right:16px;background:#ffffff22;color:#fff;border-color:#ffffff55}.stage-close:hover{background:#ffffff38}
+@media(max-width:600px){.stage{padding:12px}.stage-sprite{height:52vh}.stage-box{padding:20px 16px 12px;margin-top:-28px}.stage-text{font-size:15px}}
+@media(prefers-reduced-motion:reduce){.stage-sprite.swap{animation:none}}
